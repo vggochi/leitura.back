@@ -73,46 +73,29 @@ app.get('/api/turmas', async (req, res) => {
    LOGIN
 ========================================= */
 
-app.post('/api/alunos', async (req, res) => {
+app.post('/api/login', async (req, res) => {
 
-  console.log(req.body);
-
-  const {
-    nome,
-    rm,
-    turma_id,
-    senha
-  } = req.body;
+  const { rm, senha } = req.body;
 
   try {
 
-    const {
-      data,
-      error
-    } = await supabase
+    const { data, error } = await supabase
 
       .from('alunos')
 
-      .insert([{
+      .select('*')
 
-        nome,
-        rm,
-        turma_id,
-        senha
+      .eq('rm', rm)
 
-      }])
+      .eq('senha', senha)
 
-      .select();
+      .single();
 
-    if (error) {
+    if (error || !data) {
 
-      console.log(error);
+      return res.status(401).json({
 
-      return res.status(500).json({
-
-        erro: error.message,
-
-        detalhes: error
+        erro: 'RM ou senha inválidos.'
 
       });
 
@@ -120,8 +103,7 @@ app.post('/api/alunos', async (req, res) => {
 
     res.json({
 
-      mensagem:
-        'Aluno cadastrado.',
+      mensagem: 'Login realizado.',
 
       aluno: data
 
@@ -133,15 +115,13 @@ app.post('/api/alunos', async (req, res) => {
 
     res.status(500).json({
 
-      erro:
-        'Erro interno.'
+      erro: 'Erro ao realizar login.'
 
     });
 
   }
 
 });
-
 /* =========================================
    REGISTRAR LEITURA
 ========================================= */
