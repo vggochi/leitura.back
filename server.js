@@ -23,6 +23,53 @@ const supabase = createClient(
 );
 
 /* =========================================
+   LISTAR TURMAS
+========================================= */
+
+app.get('/api/turmas', async (req, res) => {
+
+  try {
+
+    const {
+      data,
+      error
+    } = await supabase
+
+      .from('turmas')
+
+      .select('*');
+
+    if (error) {
+
+      console.log(error);
+
+      return res.status(500).json({
+
+        erro:
+          error.message
+
+      });
+
+    }
+
+    res.json(data);
+
+  } catch (error) {
+
+    console.log(error);
+
+    res.status(500).json({
+
+      erro:
+        'Erro ao buscar turmas.'
+
+    });
+
+  }
+
+});
+
+/* =========================================
    LOGIN
 ========================================= */
 
