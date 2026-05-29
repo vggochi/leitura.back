@@ -389,83 +389,102 @@ app.get(
    RANKING DAS TURMAS
 ========================================= */
 
-app.get(
-  '/api/ranking',
+app.get('/api/ranking', async (req, res) => {
 
-  async (req, res) => {
+  try {
 
-    try {
+    // Busca todas as leituras
+    const {
+      data: leituras,
+      error: erroLeituras
+    } = await supabase
 
-      const {
-        data,
-        error
-      } = await supabase
+      .from('leituras')
 
-        .from('leituras')
+      .select('*');
 
-        .select(`
-          minutos,
-          alunos (
-            turma
-          )
-        `);
+    if (erroLeituras) {
 
-      if (error)
-        throw error;
+      console.log(erroLeituras);
 
-      const ranking = {};
-
-      data.forEach(item => {
-
-        const turma =
-          item.alunos.turma;
-
-        if (!ranking[turma]) {
-
-          ranking[turma] = 0;
-
-        }
-
-        ranking[turma] +=
-          item.minutos;
-
-      });
-
-      const rankingOrdenado =
-        Object.entries(ranking)
-
-          .sort(
-            (a, b) => b[1] - a[1]
-          )
-
-          .map(item => ({
-
-            turma: item[0],
-
-            minutos: item[1]
-
-          }));
-
-      res.json(
-        rankingOrdenado
-      );
-
-    } catch (error) {
-
-      console.log(error);
-
-      res.status(500).json({
+      return res.status(500).json({
 
         erro:
-          'Erro ao gerar ranking.'
+          erroLeituras.message
 
       });
 
     }
 
+    const ranking = {};
+
+    // Percorre leituras
+    for (const leitura of leituras) {
+
+      // Busca turma do aluno
+      const {
+        data: aluno,
+        error: erroAluno
+      } = await supabase
+
+        .from('alunos')
+
+        .select('turma_id')
+
+        .eq('id', leitura.aluno_id)
+
+        .single();
+
+      if (erroAluno || !aluno)
+        continue;
+
+      const turma =
+        aluno.turma_id;
+
+      // Soma minutos
+      if (!ranking[turma]) {
+
+        ranking[turma] = 0;
+
+      }
+
+      ranking[turma] +=
+        leitura.minutos;
+
+    }
+
+    // Ordena ranking
+    const rankingFinal =
+      Object.entries(ranking)
+
+      .sort(
+        (a, b) => b[1] - a[1]
+      )
+
+      .map(item => ({
+
+        turma_id: item[0],
+
+        minutos: item[1]
+
+      }));
+
+    res.json(rankingFinal);
+
+  } catch (error) {
+
+    console.log(error);
+
+    res.status(500).json({
+
+      erro:
+        'Erro ao gerar ranking.'
+
+    });
+
   }
 
-);
+});
 
 /* =========================================
    CADASTRAR ALUNO
