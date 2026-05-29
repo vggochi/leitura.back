@@ -1,125 +1,679 @@
 require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
-const { createClient } = require('@supabase/supabase-js');
+
+const {
+  createClient
+} = require('@supabase/supabase-js');
 
 const app = express();
 
-// Configurações do Express
 app.use(cors());
+
 app.use(express.json());
 
-// Conexão com o Supabase
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+/* =========================================
+   SUPABASE
+========================================= */
 
-// ==========================================
-// ROTA 1: LOGIN
-// ==========================================
-app.post('/api/login', async (req, res) => {
-    const { rm, senha } = req.body;
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
-    // Busca o aluno no Supabase
-    const { data, error } = await supabase
-        .from('alunos')
-        .select('*')
-        .eq('rm', rm)
-        .eq('senha', senha)
-        .single(); // .single() garante que retorne apenas 1 objeto, não uma array
+/* =========================================
+   LOGIN
+========================================= */
 
-    if (error || !data) {
-        return res.status(401).json({ erro: 'RM ou senha incorretos.' });
+app.post('/api/alunos', async (req, res) => {
+
+  console.log(req.body);
+
+  const {
+    nome,
+    rm,
+    turma_id,
+    senha
+  } = req.body;
+
+  try {
+
+    const {
+      data,
+      error
+    } = await supabase
+
+      .from('alunos')
+
+      .insert([{
+
+        nome,
+        rm,
+        turma_id,
+        senha
+
+      }])
+
+      .select();
+
+    if (error) {
+
+      console.log(error);
+
+      return res.status(500).json({
+
+        erro: error.message,
+
+        detalhes: error
+
+      });
+
     }
 
-    // Retorna os dados do aluno (escondendo a senha por segurança)
-    delete data.senha;
-    res.json({ aluno: data });
+    res.json({
+
+      mensagem:
+        'Aluno cadastrado.',
+
+      aluno: data
+
+    });
+
+  } catch (error) {
+
+    console.log(error);
+
+    res.status(500).json({
+
+      erro:
+        'Erro interno.'
+
+    });
+
+  }
+
 });
 
-// ==========================================
-// ROTA 2: REGISTRAR LEITURA (Máx 16min/dia)
-// ==========================================
-app.post('/api/registrar', async (req, res) => {
-    const { aluno_id, minutos } = req.body;
+/* =========================================
+   REGISTRAR LEITURA
+========================================= */
 
-    if (!aluno_id || !minutos || minutos <= 0) {
-        return res.status(400).json({ erro: 'Dados inválidos.' });
+app.post('/api/registrar', async (req, res) => {
+
+  const {
+    aluno_id,
+    minutos
+  } = req.body;
+
+  if (
+    !aluno_id ||
+    !minutos ||
+    minutos <= 0
+  ) {
+
+    return res.status(400).json({
+
+      erro:
+        'Dados inválidos.'
+
+    });
+
+  }
+
+  try {
+
+    const inicioDoDia =
+      new Date();
+
+    inicioDoDia.setHours(
+      0,
+      0,
+      0,
+      0
+    );
+
+    const fimDoDia =
+      new Date();
+
+    fimDoDia.setHours(
+      23,
+      59,
+      59,
+      999
+    );
+
+    const {
+      data: leiturasHoje,
+      error: erroBusca
+    } = await supabase
+
+      .from('leituras')
+
+      .select('minutos')
+
+      .eq(
+        'aluno_id',
+        aluno_id
+      )
+
+      .gte(
+        'created_at',
+        inicioDoDia.toISOString()
+      )
+
+      .lte(
+        'created_at',
+        fimDoDia.toISOString()
+      );
+
+    if (erroBusca)
+      throw erroBusca;
+
+    const totalHoje =
+      leiturasHoje.reduce(
+
+        (acc, leitura) =>
+
+          acc + leitura.minutos,
+
+        0
+
+      );
+
+    if (
+      totalHoje + minutos > 16
+    ) {
+
+      const restante =
+        16 - totalHoje;
+
+      if (restante <= 0) {
+
+        return res
+          .status(400)
+          .json({
+
+            erro:
+              'Você já atingiu o limite diário.'
+
+          });
+
+      }
+
+      return res
+        .status(400)
+        .json({
+
+          erro:
+            `Você só pode registrar mais ${restante} minutos.`
+
+        });
+
     }
 
+    const {
+      error: erroInsert
+    } = await supabase
+
+      .from('leituras')
+
+      .insert([{
+
+        aluno_id,
+        minutos
+
+      }]);
+
+    if (erroInsert)
+      throw erroInsert;
+
+    res.json({
+
+      mensagem:
+        'Leitura registrada com sucesso.'
+
+    });
+
+  } catch (error) {
+
+    console.log(error);
+
+    res.status(500).json({
+
+      erro:
+        'Erro interno.'
+
+    });
+
+  }
+
+});
+
+/* =========================================
+   ESTATÍSTICAS
+========================================= */
+
+app.get(
+  '/api/estatisticas',
+
+  async (req, res) => {
+
     try {
-        // 1. Descobrir quantos minutos o aluno já leu HOJE
-        const inicioDoDia = new Date();
-        inicioDoDia.setHours(0, 0, 0, 0);
-        
-        const fimDoDia = new Date();
-        fimDoDia.setHours(23, 59, 59, 999);
 
-        const { data: leiturasHoje, error: erroBusca } = await supabase
-            .from('leituras')
-            .select('minutos')
-            .eq('aluno_id', aluno_id)
-            .gte('created_at', inicioDoDia.toISOString())
-            .lte('created_at', fimDoDia.toISOString());
+      const {
+        data,
+        error
+      } = await supabase
 
-        if (erroBusca) throw erroBusca;
+        .from('leituras')
 
-        // Soma os minutos já lidos hoje
-        const totalHoje = leiturasHoje.reduce((acc, leitura) => acc + leitura.minutos, 0);
+        .select('minutos');
 
-        // 2. Verifica a regra de negócio (Máximo 16 min)
-        if (totalHoje + minutos > 16) {
-            const restante = 16 - totalHoje;
-            if (restante === 0) {
-                return res.status(400).json({ erro: 'Você já atingiu seu limite de 16 minutos hoje. Volte amanhã!' });
-            } else {
-                return res.status(400).json({ erro: `Você só pode registrar mais ${restante} minutos hoje.` });
-            }
+      if (error)
+        throw error;
+
+      const total_escola =
+        data.reduce(
+
+          (acc, leitura) =>
+
+            acc + leitura.minutos,
+
+          0
+
+        );
+
+      res.json({
+
+        total_escola
+
+      });
+
+    } catch (error) {
+
+      res.status(500).json({
+
+        erro:
+          'Erro ao buscar estatísticas.'
+
+      });
+
+    }
+
+  }
+
+);
+
+/* =========================================
+   LISTAR ALUNOS
+========================================= */
+
+app.get(
+  '/api/alunos',
+
+  async (req, res) => {
+
+    try {
+
+      const {
+        data,
+        error
+      } = await supabase
+
+        .from('alunos')
+
+        .select('*');
+
+      if (error)
+        throw error;
+
+      res.json(data);
+
+    } catch (error) {
+
+      res.status(500).json({
+
+        erro:
+          'Erro ao buscar alunos.'
+
+      });
+
+    }
+
+  }
+
+);
+
+/* =========================================
+   LISTAR LEITURAS
+========================================= */
+
+app.get(
+  '/api/leituras',
+
+  async (req, res) => {
+
+    try {
+
+      const {
+        data,
+        error
+      } = await supabase
+
+        .from('leituras')
+
+        .select('*');
+
+      if (error)
+        throw error;
+
+      res.json(data);
+
+    } catch (error) {
+
+      res.status(500).json({
+
+        erro:
+          'Erro ao buscar leituras.'
+
+      });
+
+    }
+
+  }
+
+);
+
+/* =========================================
+   RANKING DAS TURMAS
+========================================= */
+
+app.get(
+  '/api/ranking',
+
+  async (req, res) => {
+
+    try {
+
+      const {
+        data,
+        error
+      } = await supabase
+
+        .from('leituras')
+
+        .select(`
+          minutos,
+          alunos (
+            turma
+          )
+        `);
+
+      if (error)
+        throw error;
+
+      const ranking = {};
+
+      data.forEach(item => {
+
+        const turma =
+          item.alunos.turma;
+
+        if (!ranking[turma]) {
+
+          ranking[turma] = 0;
+
         }
 
-        // 3. Salva a nova leitura no Supabase
-        const { error: erroInsert } = await supabase
-            .from('leituras')
-            .insert([{ aluno_id, minutos }]);
+        ranking[turma] +=
+          item.minutos;
 
-        if (erroInsert) throw erroInsert;
+      });
 
-        res.json({ mensagem: 'Leitura registrada com sucesso!' });
+      const rankingOrdenado =
+        Object.entries(ranking)
+
+          .sort(
+            (a, b) => b[1] - a[1]
+          )
+
+          .map(item => ({
+
+            turma: item[0],
+
+            minutos: item[1]
+
+          }));
+
+      res.json(
+        rankingOrdenado
+      );
 
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ erro: 'Erro interno no servidor ao registrar leitura.' });
-    }
-});
 
-// ==========================================
-// ROTA 3: ESTATÍSTICAS DA ESCOLA
-// ==========================================
-app.get('/api/estatisticas', async (req, res) => {
+      console.log(error);
+
+      res.status(500).json({
+
+        erro:
+          'Erro ao gerar ranking.'
+
+      });
+
+    }
+
+  }
+
+);
+
+/* =========================================
+   CADASTRAR ALUNO
+========================================= */
+
+app.post(
+  '/api/alunos',
+
+  async (req, res) => {
+
+    const {
+      nome,
+      rm,
+      turma,
+      senha
+    } = req.body;
+
     try {
-        // Busca todos os minutos lidos na tabela
-        const { data, error } = await supabase
-            .from('leituras')
-            .select('minutos');
 
-        if (error) throw error;
+      const {
+        data,
+        error
+      } = await supabase
 
-        // Soma todos os minutos da escola inteira
-        const total_escola = data.reduce((acc, leitura) => acc + leitura.minutos, 0);
+        .from('alunos')
 
-        res.json({ total_escola });
+        .insert([{
+
+          nome,
+          rm,
+          turma,
+          senha
+
+        }])
+
+        .select();
+
+      if (error)
+        throw error;
+
+      res.json(data);
 
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ erro: 'Erro ao buscar estatísticas.' });
+
+      res.status(500).json({
+
+        erro:
+          'Erro ao cadastrar aluno.'
+
+      });
+
     }
+
+  }
+
+);
+
+/* =========================================
+   EDITAR ALUNO
+========================================= */
+
+app.put('/api/alunos/:id', async (req, res) => {
+
+  const { id } = req.params;
+
+  const {
+    nome,
+    rm,
+    turma_id,
+    senha
+  } = req.body;
+
+  try {
+
+    const {
+      data,
+      error
+    } = await supabase
+
+      .from('alunos')
+
+      .update({
+
+        nome,
+        rm,
+        turma_id,
+        senha
+
+      })
+
+      .eq('id', id)
+
+      .select();
+
+    if (error)
+      throw error;
+
+    res.json({
+
+      mensagem:
+        'Aluno atualizado.',
+
+      aluno: data
+
+    });
+
+  } catch (error) {
+
+    console.log(error);
+
+    res.status(500).json({
+
+      erro:
+        'Erro ao atualizar aluno.'
+
+    });
+
+  }
+
 });
 
-// ==========================================
-// INICIANDO O SERVIDOR
-// ==========================================
-const PORT = process.env.PORT || 3000;
+/* =========================================
+   EDITAR ALUNO
+========================================= */
+
+app.put('/api/alunos/:id', async (req, res) => {
+
+  const { id } = req.params;
+
+  const {
+    nome,
+    rm,
+    turma_id,
+    senha
+  } = req.body;
+
+  try {
+
+    const {
+      data,
+      error
+    } = await supabase
+
+      .from('alunos')
+
+      .update({
+
+        nome,
+        rm,
+        turma_id,
+        senha
+
+      })
+
+      .eq('id', id)
+
+      .select();
+
+    if (error) {
+
+      console.log(error);
+
+      return res.status(500).json({
+
+        erro:
+          error.message
+
+      });
+
+    }
+
+    res.json({
+
+      mensagem:
+        'Aluno atualizado com sucesso.',
+
+      aluno: data
+
+    });
+
+  } catch (error) {
+
+    console.log(error);
+
+    res.status(500).json({
+
+      erro:
+        'Erro ao atualizar aluno.'
+
+    });
+
+  }
+
+});
+
+/* =========================================
+   INICIAR SERVIDOR
+========================================= */
+
+const PORT =
+  process.env.PORT || 3000;
+
 app.listen(PORT, () => {
-    console.log(`🚀 Servidor rodando na porta ${PORT}`);
-    console.log(`Conectado ao Supabase: ${process.env.SUPABASE_URL ? 'Sim' : 'Não'}`);
+
+  console.log(
+
+    `🚀 Servidor da livraria rodando na porta ${PORT}`
+
+  );
+
 });
