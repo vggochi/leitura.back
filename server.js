@@ -15,7 +15,7 @@ app.use(express.json());
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
+  process.env.SUPABASE_ANON_KEY,
 );
 
 /* ==========================
@@ -100,10 +100,7 @@ app.delete("/api/turmas/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { error } = await supabase
-      .from("turmas")
-      .delete()
-      .eq("id", id);
+    const { error } = await supabase.from("turmas").delete().eq("id", id);
 
     if (error) throw error;
 
@@ -235,9 +232,13 @@ app.post("/api/registrar", async (req, res) => {
       return res.status(400).json({ erro: "Dados inválidos." });
     }
 
-    const { error } = await supabase
-      .from("leituras")
-      .insert([{ aluno_id, minutos }]);
+    const { error } = await supabase.from("leituras").insert([
+      {
+        aluno_id,
+        minutos,
+        data_registro: new Date().toISOString(),
+      },
+    ]);
 
     if (error) throw error;
 
@@ -245,6 +246,26 @@ app.post("/api/registrar", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(500).json({ erro: "Erro ao registrar leitura." });
+  }
+});
+
+/* ==========================
+   LEITURAS (GET - NECESSÁRIO PRO GRÁFICO)
+========================== */
+
+app.get("/api/leituras", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("leituras")
+      .select("*")
+      .order("data_registro", { ascending: true });
+
+    if (error) throw error;
+
+    res.json(data || []);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ erro: "Erro ao buscar leituras." });
   }
 });
 
