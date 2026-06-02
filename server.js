@@ -15,7 +15,7 @@ app.use(express.json());
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY,
+  process.env.SUPABASE_ANON_KEY
 );
 
 /* ==========================
@@ -100,7 +100,10 @@ app.delete("/api/turmas/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { error } = await supabase.from("turmas").delete().eq("id", id);
+    const { error } = await supabase
+      .from("turmas")
+      .delete()
+      .eq("id", id);
 
     if (error) throw error;
 
@@ -183,7 +186,9 @@ app.post("/api/alunos", async (req, res) => {
 
 app.get("/api/alunos", async (req, res) => {
   try {
-    const { data, error } = await supabase.from("alunos").select("*");
+    const { data, error } = await supabase
+      .from("alunos")
+      .select("*");
 
     if (error) throw error;
 
@@ -221,7 +226,7 @@ app.post("/api/login", async (req, res) => {
 });
 
 /* ==========================
-   LEITURAS
+   LEITURAS (CORRIGIDO)
 ========================== */
 
 app.post("/api/registrar", async (req, res) => {
@@ -232,13 +237,14 @@ app.post("/api/registrar", async (req, res) => {
       return res.status(400).json({ erro: "Dados inválidos." });
     }
 
-    const { error } = await supabase.from("leituras").insert([
-      {
-        aluno_id,
-        minutos,
-        data_registro: new Date().toISOString(),
-      },
-    ]);
+    const { error } = await supabase
+      .from("leituras")
+      .insert([
+        {
+          aluno_id,
+          minutos,
+        },
+      ]);
 
     if (error) throw error;
 
@@ -250,7 +256,7 @@ app.post("/api/registrar", async (req, res) => {
 });
 
 /* ==========================
-   LEITURAS (GET - NECESSÁRIO PRO GRÁFICO)
+   LEITURAS LISTAGEM
 ========================== */
 
 app.get("/api/leituras", async (req, res) => {
@@ -258,7 +264,7 @@ app.get("/api/leituras", async (req, res) => {
     const { data, error } = await supabase
       .from("leituras")
       .select("*")
-      .order("data_registro", { ascending: true });
+      .order("id", { ascending: true });
 
     if (error) throw error;
 
@@ -270,7 +276,73 @@ app.get("/api/leituras", async (req, res) => {
 });
 
 /* ==========================
-   SERVIDOR
+   RANKING (CORRIGIDO FORTE)
+========================== */
+
+app.get("/api/ranking", async (req, res) => {
+  try {
+    const { data: leituras, error } = await supabase
+      .from("leituras")
+      .select("aluno_id, minutos");
+
+    if (error) throw error;
+
+    const { data: alunos } = await supabase
+      .from("alunos")
+      .select("id, turma_id");
+
+    const ranking = {};
+
+    (leituras || []).forEach((l) => {
+      const aluno = alunos?.find((a) => a.id === l.aluno_id);
+
+      if (!aluno) return;
+
+      const turma = aluno.turma_id;
+
+      ranking[turma] = (ranking[turma] || 0) + l.minutos;
+    });
+
+    const result = Object.entries(ranking)
+      .map(([turma_id, minutos]) => ({
+        turma_id,
+        minutos,
+      }))
+      .sort((a, b) => b.minutos - a.minutos);
+
+    res.json(result);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ erro: "Erro ao gerar ranking." });
+  }
+});
+
+/* ==========================
+   ESTATÍSTICAS
+========================== */
+
+app.get("/api/estatisticas", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("leituras")
+      .select("minutos");
+
+    if (error) throw error;
+
+    const total = (data || []).reduce(
+      (acc, item) => acc + item.minutos,
+      0
+    );
+
+    res.json({ total_escola: total });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ erro: "Erro ao buscar estatísticas." });
+  }
+});
+
+/* ==========================
+   SERVER
 ========================== */
 
 const PORT = process.env.PORT || 3000;
