@@ -15,21 +15,19 @@ app.use(express.json());
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY,
+  process.env.SUPABASE_ANON_KEY
 );
 
 /* ==========================
-   TESTE API
+   TESTE
 ========================== */
 
 app.get("/", (req, res) => {
-  res.json({
-    mensagem: "API Leitura funcionando 🚀",
-  });
+  res.json({ mensagem: "API Leitura funcionando 🚀" });
 });
 
 /* ==========================
-   LISTAR TURMAS
+   TURMAS
 ========================== */
 
 app.get("/api/turmas", async (req, res) => {
@@ -44,16 +42,9 @@ app.get("/api/turmas", async (req, res) => {
     res.json(data || []);
   } catch (error) {
     console.log(error);
-
-    res.status(500).json({
-      erro: "Erro ao buscar turmas.",
-    });
+    res.status(500).json({ erro: "Erro ao buscar turmas." });
   }
 });
-
-/* ==========================
-   CRIAR TURMA
-========================== */
 
 app.post("/api/turmas", async (req, res) => {
   try {
@@ -61,21 +52,13 @@ app.post("/api/turmas", async (req, res) => {
 
     if (!nome || !serie || !periodo || !sala || !professor_id) {
       return res.status(400).json({
-        erro: "Preencha todos os campos.",
+        erro: "Preencha todos os campos da turma.",
       });
     }
 
     const { data, error } = await supabase
       .from("turmas")
-      .insert([
-        {
-          nome,
-          serie,
-          periodo,
-          sala,
-          professor_id,
-        },
-      ])
+      .insert([{ nome, serie, periodo, sala, professor_id }])
       .select();
 
     if (error) throw error;
@@ -86,16 +69,9 @@ app.post("/api/turmas", async (req, res) => {
     });
   } catch (error) {
     console.log(error);
-
-    res.status(500).json({
-      erro: "Erro ao criar turma.",
-    });
+    res.status(500).json({ erro: "Erro ao criar turma." });
   }
 });
-
-/* ==========================
-   EDITAR TURMA
-========================== */
 
 app.put("/api/turmas/:id", async (req, res) => {
   try {
@@ -104,13 +80,7 @@ app.put("/api/turmas/:id", async (req, res) => {
 
     const { data, error } = await supabase
       .from("turmas")
-      .update({
-        nome,
-        serie,
-        periodo,
-        sala,
-        professor_id,
-      })
+      .update({ nome, serie, periodo, sala, professor_id })
       .eq("id", id)
       .select();
 
@@ -122,72 +92,75 @@ app.put("/api/turmas/:id", async (req, res) => {
     });
   } catch (error) {
     console.log(error);
-
-    res.status(500).json({
-      erro: "Erro ao atualizar turma.",
-    });
+    res.status(500).json({ erro: "Erro ao atualizar turma." });
   }
 });
-/* ==========================
-   DELETAR TURMA
-========================== */
 
 app.delete("/api/turmas/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { error } = await supabase.from("turmas").delete().eq("id", id);
+    const { error } = await supabase
+      .from("turmas")
+      .delete()
+      .eq("id", id);
+
+    if (error) throw error;
+
+    res.json({ mensagem: "Turma deletada com sucesso." });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ erro: "Erro ao deletar turma." });
+  }
+});
+
+/* ==========================
+   PROFESSORES
+========================== */
+
+app.get("/api/professores", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("professores")
+      .select("*")
+      .order("id");
+
+    if (error) throw error;
+
+    res.json(data || []);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ erro: "Erro ao buscar professores." });
+  }
+});
+
+app.post("/api/professores", async (req, res) => {
+  try {
+    const { nome, email, senha } = req.body;
+
+    if (!nome || !email || !senha) {
+      return res.status(400).json({ erro: "Preencha todos os campos." });
+    }
+
+    const { data, error } = await supabase
+      .from("professores")
+      .insert([{ nome, email, senha }])
+      .select();
 
     if (error) throw error;
 
     res.json({
-      mensagem: "Turma deletada com sucesso.",
+      mensagem: "Professor cadastrado.",
+      professor: data?.[0] || null,
     });
   } catch (error) {
     console.log(error);
-
-    res.status(500).json({
-      erro: "Erro ao deletar turma.",
-    });
+    res.status(500).json({ erro: "Erro ao cadastrar professor." });
   }
 });
 
 /* ==========================
-   LOGIN ALUNO
-========================== */
-
-app.post("/api/login", async (req, res) => {
-  try {
-    const { rm, senha } = req.body;
-
-    const { data, error } = await supabase
-      .from("alunos")
-      .select("*")
-      .eq("rm", rm)
-      .eq("senha", senha)
-      .single();
-
-    if (error || !data) {
-      return res.status(401).json({
-        erro: "RM ou senha inválidos.",
-      });
-    }
-
-    res.json({
-      mensagem: "Login realizado.",
-      aluno: data,
-    });
-  } catch (error) {
-    console.log(error);
-
-    res.status(500).json({
-      erro: "Erro ao realizar login.",
-    });
-  }
-});
-
-/* ==========================
-   CADASTRAR ALUNO
+   ALUNOS
 ========================== */
 
 app.post("/api/alunos", async (req, res) => {
@@ -207,16 +180,9 @@ app.post("/api/alunos", async (req, res) => {
     });
   } catch (error) {
     console.log(error);
-
-    res.status(500).json({
-      erro: "Erro ao cadastrar aluno.",
-    });
+    res.status(500).json({ erro: "Erro ao cadastrar aluno." });
   }
 });
-
-/* ==========================
-   LISTAR ALUNOS
-========================== */
 
 app.get("/api/alunos", async (req, res) => {
   try {
@@ -227,113 +193,46 @@ app.get("/api/alunos", async (req, res) => {
     res.json(data || []);
   } catch (error) {
     console.log(error);
-
-    res.status(500).json({
-      erro: "Erro ao buscar alunos.",
-    });
+    res.status(500).json({ erro: "Erro ao buscar alunos." });
   }
 });
 
 /* ==========================
-   CADASTRAR PROFESSOR
+   LOGIN
 ========================== */
 
-app.post("/api/professores", async (req, res) => {
+app.post("/api/login", async (req, res) => {
   try {
-    const { nome, email, senha } = req.body;
+    const { rm, senha } = req.body;
 
     const { data, error } = await supabase
-      .from("professores")
-      .insert([{ nome, email, senha }])
-      .select();
-
-    if (error) throw error;
-
-    res.json({
-      mensagem: "Professor cadastrado.",
-      professor: data?.[0] || null,
-    });
-  } catch (error) {
-    console.log(error);
-
-    res.status(500).json({
-      erro: "Erro ao cadastrar professor.",
-    });
-  }
-});
-
-/* ==========================
-   LOGIN PROFESSOR
-========================== */
-
-app.post("/api/professores/login", async (req, res) => {
-  try {
-    const { email, senha } = req.body;
-
-    const { data, error } = await supabase
-      .from("professores")
+      .from("alunos")
       .select("*")
-      .eq("email", email)
+      .eq("rm", rm)
       .eq("senha", senha)
       .single();
 
     if (error || !data) {
-      return res.status(401).json({
-        erro: "Email ou senha inválidos.",
-      });
+      return res.status(401).json({ erro: "RM ou senha inválidos." });
     }
 
-    res.json({
-      mensagem: "Login realizado.",
-      professor: data,
-    });
+    res.json({ mensagem: "Login realizado.", aluno: data });
   } catch (error) {
     console.log(error);
-
-    res.status(500).json({
-      erro: "Erro ao realizar login.",
-    });
+    res.status(500).json({ erro: "Erro no login." });
   }
 });
 
 /* ==========================
-   REGISTRAR LEITURA
+   LEITURAS
 ========================== */
 
 app.post("/api/registrar", async (req, res) => {
-  const { aluno_id, minutos } = req.body;
-
-  if (!aluno_id || !minutos) {
-    return res.status(400).json({
-      erro: "Dados inválidos.",
-    });
-  }
-
   try {
-    const inicioDoDia = new Date();
-    inicioDoDia.setHours(0, 0, 0, 0);
+    const { aluno_id, minutos } = req.body;
 
-    const fimDoDia = new Date();
-    fimDoDia.setHours(23, 59, 59, 999);
-
-    const { data: leiturasHoje, error: erroBusca } = await supabase
-      .from("leituras")
-      .select("minutos")
-      .eq("aluno_id", aluno_id)
-      .gte("created_at", inicioDoDia.toISOString())
-      .lte("created_at", fimDoDia.toISOString());
-
-    if (erroBusca) throw erroBusca;
-
-    const totalHoje = (leiturasHoje || []).reduce(
-      (acc, item) => acc + item.minutos,
-      0,
-    );
-
-    if (totalHoje + minutos > 16) {
-      return res.status(400).json({
-        erro: `Limite diário excedido. Restam ${16 - totalHoje} minutos.`,
-      });
+    if (!aluno_id || !minutos) {
+      return res.status(400).json({ erro: "Dados inválidos." });
     }
 
     const { error } = await supabase
@@ -342,104 +241,10 @@ app.post("/api/registrar", async (req, res) => {
 
     if (error) throw error;
 
-    res.json({
-      mensagem: "Leitura registrada.",
-    });
+    res.json({ mensagem: "Leitura registrada." });
   } catch (error) {
     console.log(error);
-
-    res.status(500).json({
-      erro: "Erro ao registrar leitura.",
-    });
-  }
-});
-
-/* ==========================
-   LISTAR LEITURAS
-========================== */
-
-app.get("/api/leituras", async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from("leituras")
-      .select("*")
-      .order("created_at", { ascending: true });
-
-    if (error) throw error;
-
-    res.json(data || []);
-  } catch (error) {
-    console.log(error);
-
-    res.status(500).json({
-      erro: "Erro ao buscar leituras.",
-    });
-  }
-});
-
-/* ==========================
-   ESTATÍSTICAS
-========================== */
-
-app.get("/api/estatisticas", async (req, res) => {
-  try {
-    const { data, error } = await supabase.from("leituras").select("minutos");
-
-    if (error) throw error;
-
-    const total_escola = (data || []).reduce(
-      (acc, item) => acc + item.minutos,
-      0,
-    );
-
-    res.json({ total_escola });
-  } catch (error) {
-    console.log(error);
-
-    res.status(500).json({
-      erro: "Erro ao buscar estatísticas.",
-    });
-  }
-});
-
-/* ==========================
-   RANKING DAS TURMAS
-========================== */
-
-app.get("/api/ranking", async (req, res) => {
-  try {
-    const { data, error } = await supabase.from("leituras").select(`
-        minutos,
-        alunos (
-          turma_id
-        )
-      `);
-
-    if (error) throw error;
-
-    const ranking = {};
-
-    (data || []).forEach((item) => {
-      const turma = item.alunos?.turma_id;
-      if (!turma) return;
-
-      ranking[turma] = (ranking[turma] || 0) + item.minutos;
-    });
-
-    const rankingFinal = Object.entries(ranking)
-      .map(([turma_id, minutos]) => ({
-        turma_id,
-        minutos,
-      }))
-      .sort((a, b) => b.minutos - a.minutos);
-
-    res.json(rankingFinal);
-  } catch (error) {
-    console.log(error);
-
-    res.status(500).json({
-      erro: "Erro ao gerar ranking.",
-    });
+    res.status(500).json({ erro: "Erro ao registrar leitura." });
   }
 });
 
