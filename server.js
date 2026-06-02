@@ -1,8 +1,8 @@
-require('dotenv').config();
+require("dotenv").config();
 
-const express = require('express');
-const cors = require('cors');
-const { createClient } = require('@supabase/supabase-js');
+const express = require("express");
+const cors = require("cors");
+const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 
@@ -15,16 +15,16 @@ app.use(express.json());
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
+  process.env.SUPABASE_ANON_KEY,
 );
 
 /* ==========================
    TESTE API
 ========================== */
 
-app.get('/', (req, res) => {
+app.get("/", (req, res) => {
   res.json({
-    mensagem: 'API Leitura funcionando 🚀'
+    mensagem: "API Leitura funcionando 🚀",
   });
 });
 
@@ -32,564 +32,380 @@ app.get('/', (req, res) => {
    LISTAR TURMAS
 ========================== */
 
-app.get('/api/turmas', async (req, res) => {
-
+app.get("/api/turmas", async (req, res) => {
   try {
-
     const { data, error } = await supabase
-      .from('turmas')
-      .select('*')
-      .order('id');
+      .from("turmas")
+      .select("*")
+      .order("id");
 
     if (error) throw error;
 
-    res.json(data);
-
+    res.json(data || []);
   } catch (error) {
-
     console.log(error);
 
     res.status(500).json({
-      erro: 'Erro ao buscar turmas.'
+      erro: "Erro ao buscar turmas.",
     });
-
   }
-
 });
 
 /* ==========================
    CRIAR TURMA
 ========================== */
 
-app.post('/api/turmas', async (req, res) => {
-
+app.post("/api/turmas", async (req, res) => {
   try {
+    const { nome, serie, professor } = req.body;
 
-    const {
-      nome,
-      serie,
-      professor
-    } = req.body;
+    if (!nome || !serie || !professor) {
+      return res.status(400).json({
+        erro: "Campos obrigatórios não preenchidos.",
+      });
+    }
 
     const { data, error } = await supabase
-
-      .from('turmas')
-
+      .from("turmas")
       .insert([
         {
           nome,
           serie,
-          professor
-        }
+          professor,
+        },
       ])
-
       .select();
 
     if (error) throw error;
 
-    res.json({
-      mensagem: 'Turma criada.',
-      turma: data[0]
+    res.status(201).json({
+      mensagem: "Turma criada com sucesso.",
+      turma: data?.[0] || null,
     });
-
   } catch (error) {
-
     console.log(error);
 
     res.status(500).json({
-      erro: 'Erro ao criar turma.'
+      erro: "Erro ao criar turma.",
     });
-
   }
-
 });
 
 /* ==========================
    EDITAR TURMA
 ========================== */
 
-app.put('/api/turmas/:id', async (req, res) => {
-
+app.put("/api/turmas/:id", async (req, res) => {
   try {
-
     const { id } = req.params;
-
-    const {
-      nome,
-      serie,
-      professor
-    } = req.body;
+    const { nome, serie, professor } = req.body;
 
     const { data, error } = await supabase
-
-      .from('turmas')
-
+      .from("turmas")
       .update({
         nome,
         serie,
-        professor
+        professor,
       })
-
-      .eq('id', id)
-
+      .eq("id", id)
       .select();
 
     if (error) throw error;
 
     res.json({
-      mensagem: 'Turma atualizada.',
-      turma: data[0]
+      mensagem: "Turma atualizada com sucesso.",
+      turma: data?.[0] || null,
     });
-
   } catch (error) {
-
     console.log(error);
 
     res.status(500).json({
-      erro: 'Erro ao atualizar turma.'
+      erro: "Erro ao atualizar turma.",
     });
-
   }
-
 });
 
 /* ==========================
    DELETAR TURMA
 ========================== */
 
-app.delete('/api/turmas/:id', async (req, res) => {
-
+app.delete("/api/turmas/:id", async (req, res) => {
   try {
-
     const { id } = req.params;
 
-    const { error } = await supabase
-
-      .from('turmas')
-
-      .delete()
-
-      .eq('id', id);
+    const { error } = await supabase.from("turmas").delete().eq("id", id);
 
     if (error) throw error;
 
     res.json({
-      mensagem: 'Turma deletada.'
+      mensagem: "Turma deletada com sucesso.",
     });
-
   } catch (error) {
-
     console.log(error);
 
     res.status(500).json({
-      erro: 'Erro ao deletar turma.'
+      erro: "Erro ao deletar turma.",
     });
-
   }
-
 });
 
 /* ==========================
    LOGIN ALUNO
 ========================== */
 
-app.post('/api/login', async (req, res) => {
-
+app.post("/api/login", async (req, res) => {
   try {
-
     const { rm, senha } = req.body;
 
     const { data, error } = await supabase
-
-      .from('alunos')
-
-      .select('*')
-
-      .eq('rm', rm)
-
-      .eq('senha', senha)
-
+      .from("alunos")
+      .select("*")
+      .eq("rm", rm)
+      .eq("senha", senha)
       .single();
 
     if (error || !data) {
-
       return res.status(401).json({
-        erro: 'RM ou senha inválidos.'
+        erro: "RM ou senha inválidos.",
       });
-
     }
 
     res.json({
-      mensagem: 'Login realizado.',
-      aluno: data
+      mensagem: "Login realizado.",
+      aluno: data,
     });
-
   } catch (error) {
-
     console.log(error);
 
     res.status(500).json({
-      erro: 'Erro ao realizar login.'
+      erro: "Erro ao realizar login.",
     });
-
   }
-
 });
 
 /* ==========================
    CADASTRAR ALUNO
 ========================== */
 
-app.post('/api/alunos', async (req, res) => {
-
+app.post("/api/alunos", async (req, res) => {
   try {
-
-    const {
-      nome,
-      rm,
-      email,
-      senha,
-      turma_id
-    } = req.body;
+    const { nome, rm, email, senha, turma_id } = req.body;
 
     const { data, error } = await supabase
-
-      .from('alunos')
-
-      .insert([
-        {
-          nome,
-          rm,
-          email,
-          senha,
-          turma_id
-        }
-      ])
-
+      .from("alunos")
+      .insert([{ nome, rm, email, senha, turma_id }])
       .select();
 
     if (error) throw error;
 
     res.json({
-      mensagem: 'Aluno cadastrado.',
-      aluno: data[0]
+      mensagem: "Aluno cadastrado.",
+      aluno: data?.[0] || null,
     });
-
   } catch (error) {
-
     console.log(error);
 
     res.status(500).json({
-      erro: 'Erro ao cadastrar aluno.'
+      erro: "Erro ao cadastrar aluno.",
     });
-
   }
-
 });
 
 /* ==========================
    LISTAR ALUNOS
 ========================== */
 
-app.get('/api/alunos', async (req, res) => {
-
+app.get("/api/alunos", async (req, res) => {
   try {
-
-    const { data, error } = await supabase
-
-      .from('alunos')
-
-      .select('*');
+    const { data, error } = await supabase.from("alunos").select("*");
 
     if (error) throw error;
 
-    res.json(data);
-
+    res.json(data || []);
   } catch (error) {
-
     console.log(error);
 
     res.status(500).json({
-      erro: 'Erro ao buscar alunos.'
+      erro: "Erro ao buscar alunos.",
     });
-
   }
-
 });
 
 /* ==========================
    CADASTRAR PROFESSOR
 ========================== */
 
-app.post('/api/professores', async (req, res) => {
-
+app.post("/api/professores", async (req, res) => {
   try {
-
-    const {
-      nome,
-      email,
-      senha
-    } = req.body;
+    const { nome, email, senha } = req.body;
 
     const { data, error } = await supabase
-
-      .from('professores')
-
-      .insert([
-        {
-          nome,
-          email,
-          senha
-        }
-      ])
-
+      .from("professores")
+      .insert([{ nome, email, senha }])
       .select();
 
     if (error) throw error;
 
     res.json({
-      mensagem: 'Professor cadastrado.',
-      professor: data[0]
+      mensagem: "Professor cadastrado.",
+      professor: data?.[0] || null,
     });
-
   } catch (error) {
-
     console.log(error);
 
     res.status(500).json({
-      erro: 'Erro ao cadastrar professor.'
+      erro: "Erro ao cadastrar professor.",
     });
-
   }
-
 });
 
 /* ==========================
    LOGIN PROFESSOR
 ========================== */
 
-app.post('/api/professores/login', async (req, res) => {
-
+app.post("/api/professores/login", async (req, res) => {
   try {
-
-    const {
-      email,
-      senha
-    } = req.body;
+    const { email, senha } = req.body;
 
     const { data, error } = await supabase
-
-      .from('professores')
-
-      .select('*')
-
-      .eq('email', email)
-
-      .eq('senha', senha)
-
+      .from("professores")
+      .select("*")
+      .eq("email", email)
+      .eq("senha", senha)
       .single();
 
     if (error || !data) {
-
       return res.status(401).json({
-        erro: 'Email ou senha inválidos.'
+        erro: "Email ou senha inválidos.",
       });
-
     }
 
     res.json({
-      mensagem: 'Login realizado.',
-      professor: data
+      mensagem: "Login realizado.",
+      professor: data,
     });
-
   } catch (error) {
-
     console.log(error);
 
     res.status(500).json({
-      erro: 'Erro ao realizar login.'
+      erro: "Erro ao realizar login.",
     });
-
   }
-
 });
 
 /* ==========================
    REGISTRAR LEITURA
 ========================== */
 
-app.post('/api/registrar', async (req, res) => {
-
-  const {
-    aluno_id,
-    minutos
-  } = req.body;
+app.post("/api/registrar", async (req, res) => {
+  const { aluno_id, minutos } = req.body;
 
   if (!aluno_id || !minutos) {
-
     return res.status(400).json({
-      erro: 'Dados inválidos.'
+      erro: "Dados inválidos.",
     });
-
   }
 
   try {
-
     const inicioDoDia = new Date();
-    inicioDoDia.setHours(0,0,0,0);
+    inicioDoDia.setHours(0, 0, 0, 0);
 
     const fimDoDia = new Date();
-    fimDoDia.setHours(23,59,59,999);
+    fimDoDia.setHours(23, 59, 59, 999);
 
-    const {
-      data: leiturasHoje,
-      error: erroBusca
-    } = await supabase
-
-      .from('leituras')
-
-      .select('minutos')
-
-      .eq('aluno_id', aluno_id)
-
-      .gte(
-        'created_at',
-        inicioDoDia.toISOString()
-      )
-
-      .lte(
-        'created_at',
-        fimDoDia.toISOString()
-      );
+    const { data: leiturasHoje, error: erroBusca } = await supabase
+      .from("leituras")
+      .select("minutos")
+      .eq("aluno_id", aluno_id)
+      .gte("created_at", inicioDoDia.toISOString())
+      .lte("created_at", fimDoDia.toISOString());
 
     if (erroBusca) throw erroBusca;
 
-    const totalHoje = leiturasHoje.reduce(
+    const totalHoje = (leiturasHoje || []).reduce(
       (acc, item) => acc + item.minutos,
-      0
+      0,
     );
 
     if (totalHoje + minutos > 16) {
-
       return res.status(400).json({
-        erro: `Limite diário excedido. Restam ${16 - totalHoje} minutos.`
+        erro: `Limite diário excedido. Restam ${16 - totalHoje} minutos.`,
       });
-
     }
 
     const { error } = await supabase
-
-      .from('leituras')
-
-      .insert([
-        {
-          aluno_id,
-          minutos
-        }
-      ]);
+      .from("leituras")
+      .insert([{ aluno_id, minutos }]);
 
     if (error) throw error;
 
     res.json({
-      mensagem: 'Leitura registrada.'
+      mensagem: "Leitura registrada.",
     });
-
   } catch (error) {
-
     console.log(error);
 
     res.status(500).json({
-      erro: 'Erro ao registrar leitura.'
+      erro: "Erro ao registrar leitura.",
     });
-
   }
-
 });
 
 /* ==========================
    LISTAR LEITURAS
 ========================== */
 
-app.get('/api/leituras', async (req, res) => {
-
+app.get("/api/leituras", async (req, res) => {
   try {
-
     const { data, error } = await supabase
-
-      .from('leituras')
-
-      .select('*')
-
-      .order('created_at', {
-        ascending: true
-      });
+      .from("leituras")
+      .select("*")
+      .order("created_at", { ascending: true });
 
     if (error) throw error;
 
-    res.json(data);
-
+    res.json(data || []);
   } catch (error) {
-
     console.log(error);
 
     res.status(500).json({
-      erro: 'Erro ao buscar leituras.'
+      erro: "Erro ao buscar leituras.",
     });
-
   }
-
 });
 
 /* ==========================
    ESTATÍSTICAS
 ========================== */
 
-app.get('/api/estatisticas', async (req, res) => {
-
+app.get("/api/estatisticas", async (req, res) => {
   try {
-
-    const { data, error } = await supabase
-
-      .from('leituras')
-
-      .select('minutos');
+    const { data, error } = await supabase.from("leituras").select("minutos");
 
     if (error) throw error;
 
-    const total_escola = data.reduce(
+    const total_escola = (data || []).reduce(
       (acc, item) => acc + item.minutos,
-      0
+      0,
     );
 
-    res.json({
-      total_escola
-    });
-
+    res.json({ total_escola });
   } catch (error) {
-
     console.log(error);
 
     res.status(500).json({
-      erro: 'Erro ao buscar estatísticas.'
+      erro: "Erro ao buscar estatísticas.",
     });
-
   }
-
 });
 
 /* ==========================
    RANKING DAS TURMAS
 ========================== */
 
-app.get('/api/ranking', async (req, res) => {
-
+app.get("/api/ranking", async (req, res) => {
   try {
-
-    const { data, error } = await supabase
-
-      .from('leituras')
-
-      .select(`
+    const { data, error } = await supabase.from("leituras").select(`
         minutos,
         alunos (
           turma_id
@@ -600,41 +416,28 @@ app.get('/api/ranking', async (req, res) => {
 
     const ranking = {};
 
-    data.forEach(item => {
-
+    (data || []).forEach((item) => {
       const turma = item.alunos?.turma_id;
-
       if (!turma) return;
 
-      if (!ranking[turma]) {
-        ranking[turma] = 0;
-      }
-
-      ranking[turma] += item.minutos;
-
+      ranking[turma] = (ranking[turma] || 0) + item.minutos;
     });
 
     const rankingFinal = Object.entries(ranking)
-
       .map(([turma_id, minutos]) => ({
         turma_id,
-        minutos
+        minutos,
       }))
-
       .sort((a, b) => b.minutos - a.minutos);
 
     res.json(rankingFinal);
-
   } catch (error) {
-
     console.log(error);
 
     res.status(500).json({
-      erro: 'Erro ao gerar ranking.'
+      erro: "Erro ao gerar ranking.",
     });
-
   }
-
 });
 
 /* ==========================
@@ -644,9 +447,5 @@ app.get('/api/ranking', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-
-  console.log(
-    `🚀 Servidor rodando na porta ${PORT}`
-  );
-
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
