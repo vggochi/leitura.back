@@ -57,11 +57,11 @@ app.get("/api/turmas", async (req, res) => {
 
 app.post("/api/turmas", async (req, res) => {
   try {
-    const { nome, serie, professor } = req.body;
+    const { nome, serie, periodo, sala, professor_id } = req.body;
 
-    if (!nome || !serie || !professor) {
+    if (!nome || !serie || !periodo || !sala || !professor_id) {
       return res.status(400).json({
-        erro: "Campos obrigatórios não preenchidos.",
+        erro: "Preencha todos os campos.",
       });
     }
 
@@ -71,7 +71,9 @@ app.post("/api/turmas", async (req, res) => {
         {
           nome,
           serie,
-          professor,
+          periodo,
+          sala,
+          professor_id,
         },
       ])
       .select();
@@ -98,14 +100,16 @@ app.post("/api/turmas", async (req, res) => {
 app.put("/api/turmas/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { nome, serie, professor } = req.body;
+    const { nome, serie, periodo, sala, professor_id } = req.body;
 
     const { data, error } = await supabase
       .from("turmas")
       .update({
         nome,
         serie,
-        professor,
+        periodo,
+        sala,
+        professor_id,
       })
       .eq("id", id)
       .select();
@@ -124,7 +128,6 @@ app.put("/api/turmas/:id", async (req, res) => {
     });
   }
 });
-
 /* ==========================
    DELETAR TURMA
 ========================== */
