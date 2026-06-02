@@ -1,294 +1,454 @@
-<!doctype html>
-<html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+require("dotenv").config();
 
-    <title>Gerenciar Turmas</title>
+const express = require("express");
+const cors = require("cors");
+const { createClient } = require("@supabase/supabase-js");
 
-    <script src="https://cdn.tailwindcss.com"></script>
+const app = express();
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
+app.use(cors());
+app.use(express.json());
 
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-        font-family: "Poppins", sans-serif;
-      }
+/* ==========================
+   SUPABASE
+========================== */
 
-      body {
-        background: #020617;
-        color: white;
-        min-height: 100vh;
-      }
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY,
+);
 
-      .blur-circle {
-        position: fixed;
-        width: 350px;
-        height: 350px;
-        border-radius: 50%;
-        filter: blur(140px);
-        z-index: -1;
-      }
+/* ==========================
+   TESTE API
+========================== */
 
-      .blue {
-        background: #2563eb;
-        top: -100px;
-        left: -100px;
-      }
+app.get("/", (req, res) => {
+  res.json({
+    mensagem: "API Leitura funcionando 🚀",
+  });
+});
 
-      .purple {
-        background: #9333ea;
-        bottom: -100px;
-        right: -100px;
-      }
+/* ==========================
+   LISTAR TURMAS
+========================== */
 
-      .navbar {
-        padding: 25px 50px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
+app.get("/api/turmas", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("turmas")
+      .select("*")
+      .order("id");
 
-      .btn {
-        background: #2563eb;
-        border: none;
-        padding: 14px 24px;
-        color: white;
-        border-radius: 16px;
-        cursor: pointer;
-      }
+    if (error) throw error;
 
-      .container {
-        max-width: 1200px;
-        margin: auto;
-        padding: 40px;
-      }
+    res.json(data || []);
+  } catch (error) {
+    console.log(error);
 
-      .card {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 30px;
-        padding: 30px;
-        backdrop-filter: blur(20px);
-      }
+    res.status(500).json({
+      erro: "Erro ao buscar turmas.",
+    });
+  }
+});
 
-      .form-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr auto;
-        gap: 15px;
-      }
+/* ==========================
+   CRIAR TURMA
+========================== */
 
-      input {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        color: white;
-        padding: 16px;
-        border-radius: 16px;
-      }
+app.post("/api/turmas", async (req, res) => {
+  try {
+    const { nome, serie, periodo, sala, professor_id } = req.body;
 
-      table {
-        width: 100%;
-        margin-top: 30px;
-        border-collapse: collapse;
-      }
+    if (!nome || !serie || !periodo || !sala || !professor_id) {
+      return res.status(400).json({
+        erro: "Preencha todos os campos.",
+      });
+    }
 
-      th {
-        background: #1e293b;
-        padding: 16px;
-      }
+    const { data, error } = await supabase
+      .from("turmas")
+      .insert([
+        {
+          nome,
+          serie,
+          periodo,
+          sala,
+          professor_id,
+        },
+      ])
+      .select();
 
-      td {
-        padding: 16px;
-        text-align: center;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-      }
+    if (error) throw error;
 
-      .action-btn {
-        border: none;
-        padding: 10px 16px;
-        border-radius: 12px;
-        color: white;
-        cursor: pointer;
-      }
+    res.status(201).json({
+      mensagem: "Turma criada com sucesso.",
+      turma: data?.[0] || null,
+    });
+  } catch (error) {
+    console.log(error);
 
-      .edit {
-        background: #f59e0b;
-      }
+    res.status(500).json({
+      erro: "Erro ao criar turma.",
+    });
+  }
+});
 
-      .delete {
-        background: #dc2626;
-      }
-    </style>
-  </head>
+/* ==========================
+   EDITAR TURMA
+========================== */
 
-  <body>
-    <div class="blur-circle blue"></div>
-    <div class="blur-circle purple"></div>
+app.put("/api/turmas/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nome, serie, periodo, sala, professor_id } = req.body;
 
-    <nav class="navbar">
-      <h1>🏫 Gerenciar Turmas</h1>
+    const { data, error } = await supabase
+      .from("turmas")
+      .update({
+        nome,
+        serie,
+        periodo,
+        sala,
+        professor_id,
+      })
+      .eq("id", id)
+      .select();
 
-      <button class="btn" onclick="window.location.href='professor.html'">
-        Voltar
-      </button>
-    </nav>
+    if (error) throw error;
 
-    <div class="container">
-      <div class="card">
-        <h2 class="text-2xl mb-2">📚 Cadastro de Turmas</h2>
-        <p class="text-gray-400 mb-6">Crie e gerencie as turmas da escola.</p>
+    res.json({
+      mensagem: "Turma atualizada com sucesso.",
+      turma: data?.[0] || null,
+    });
+  } catch (error) {
+    console.log(error);
 
-        <div class="form-grid">
-          <input id="nome" placeholder="Nome da turma" />
-<input id="serie" placeholder="Série" />
-<input id="periodo" placeholder="Período" />
-<input id="sala" placeholder="Sala" />
-<input id="professor_id" placeholder="ID do professor" />
+    res.status(500).json({
+      erro: "Erro ao atualizar turma.",
+    });
+  }
+});
+/* ==========================
+   DELETAR TURMA
+========================== */
 
-          <button class="btn" onclick="criarTurma()">Salvar</button>
-        </div>
+app.delete("/api/turmas/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
 
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Turma</th>
-              <th>Série</th>
-              <th>Professor</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
+    const { error } = await supabase.from("turmas").delete().eq("id", id);
 
-          <tbody id="listaTurmas"></tbody>
-        </table>
-      </div>
-    </div>
+    if (error) throw error;
 
-    <script>
-      // 🔥 IMPORTANTE: SEM /api AQUI
-      const API_URL = "https://leitura-back3.vercel.app";
+    res.json({
+      mensagem: "Turma deletada com sucesso.",
+    });
+  } catch (error) {
+    console.log(error);
 
-      async function carregarTurmas() {
-        try {
-          const res = await fetch(`${API_URL}/api/turmas`);
+    res.status(500).json({
+      erro: "Erro ao deletar turma.",
+    });
+  }
+});
 
-          if (!res.ok) throw new Error("Erro ao carregar turmas");
+/* ==========================
+   LOGIN ALUNO
+========================== */
 
-          const turmas = await res.json();
+app.post("/api/login", async (req, res) => {
+  try {
+    const { rm, senha } = req.body;
 
-          const tabela = document.getElementById("listaTurmas");
-          tabela.innerHTML = "";
+    const { data, error } = await supabase
+      .from("alunos")
+      .select("*")
+      .eq("rm", rm)
+      .eq("senha", senha)
+      .single();
 
-          (turmas || []).forEach((turma) => {
-            tabela.innerHTML += `
-              <tr>
-                <td>${turma.id}</td>
-                <td>${turma.nome}</td>
-                <td>${turma.serie}</td>
-                <td>${turma.professor}</td>
-                <td>
-                  <button class="action-btn edit" onclick="editarTurma(${turma.id})">
-                    Editar
-                  </button>
+    if (error || !data) {
+      return res.status(401).json({
+        erro: "RM ou senha inválidos.",
+      });
+    }
 
-                  <button class="action-btn delete" onclick="excluirTurma(${turma.id})">
-                    Excluir
-                  </button>
-                </td>
-              </tr>
-            `;
-          });
-        } catch (error) {
-          console.log(error);
-          alert("Erro ao carregar turmas");
-        }
-      }
+    res.json({
+      mensagem: "Login realizado.",
+      aluno: data,
+    });
+  } catch (error) {
+    console.log(error);
 
-      async function criarTurma() {
-        const nome = document.getElementById("nome").value;
-        const serie = document.getElementById("serie").value;
-        const periodo = document.getElementById("periodo").value;
-        const sala = document.getElementById("sala").value;
-        const professor_id = document.getElementById("professor_id").value;
+    res.status(500).json({
+      erro: "Erro ao realizar login.",
+    });
+  }
+});
 
-        if (!nome || !serie || !periodo || !sala || !professor_id) {
-          alert("Preencha todos os campos");
-          return;
-        }
+/* ==========================
+   CADASTRAR ALUNO
+========================== */
 
-        try {
-          const res = await fetch(`${API_URL}/api/turmas`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ nome, serie, professor }),
-          });
+app.post("/api/alunos", async (req, res) => {
+  try {
+    const { nome, rm, email, senha, turma_id } = req.body;
 
-          const data = await res.json();
+    const { data, error } = await supabase
+      .from("alunos")
+      .insert([{ nome, rm, email, senha, turma_id }])
+      .select();
 
-          if (!res.ok) {
-            alert(data.erro || "Erro ao criar turma");
-            return;
-          }
+    if (error) throw error;
 
-          alert(data.mensagem || "Turma criada!");
+    res.json({
+      mensagem: "Aluno cadastrado.",
+      aluno: data?.[0] || null,
+    });
+  } catch (error) {
+    console.log(error);
 
-          document.getElementById("nome").value = "";
-          document.getElementById("serie").value = "";
-          document.getElementById("professor").value = "";
+    res.status(500).json({
+      erro: "Erro ao cadastrar aluno.",
+    });
+  }
+});
 
-          carregarTurmas();
-        } catch (error) {
-          console.log(error);
-          alert("Erro na requisição");
-        }
-      }
+/* ==========================
+   LISTAR ALUNOS
+========================== */
 
-      async function excluirTurma(id) {
-        if (!confirm("Deseja excluir esta turma?")) return;
+app.get("/api/alunos", async (req, res) => {
+  try {
+    const { data, error } = await supabase.from("alunos").select("*");
 
-        try {
-          await fetch(`${API_URL}/api/turmas/${id}`, {
-            method: "DELETE",
-          });
+    if (error) throw error;
 
-          carregarTurmas();
-        } catch (error) {
-          console.log(error);
-        }
-      }
+    res.json(data || []);
+  } catch (error) {
+    console.log(error);
 
-      async function editarTurma(id) {
-        const nome = prompt("Novo nome:");
-        const serie = prompt("Nova série:");
-        const professor = prompt("Novo professor:");
+    res.status(500).json({
+      erro: "Erro ao buscar alunos.",
+    });
+  }
+});
 
-        if (!nome || !serie || !professor) return;
+/* ==========================
+   CADASTRAR PROFESSOR
+========================== */
 
-        try {
-          await fetch(`${API_URL}/api/turmas/${id}`, {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ nome, serie, professor }),
-          });
+app.post("/api/professores", async (req, res) => {
+  try {
+    const { nome, email, senha } = req.body;
 
-          carregarTurmas();
-        } catch (error) {
-          console.log(error);
-        }
-      }
+    const { data, error } = await supabase
+      .from("professores")
+      .insert([{ nome, email, senha }])
+      .select();
 
-      carregarTurmas();
-    </script>
-  </body>
-</html>
+    if (error) throw error;
+
+    res.json({
+      mensagem: "Professor cadastrado.",
+      professor: data?.[0] || null,
+    });
+  } catch (error) {
+    console.log(error);
+
+    res.status(500).json({
+      erro: "Erro ao cadastrar professor.",
+    });
+  }
+});
+
+/* ==========================
+   LOGIN PROFESSOR
+========================== */
+
+app.post("/api/professores/login", async (req, res) => {
+  try {
+    const { email, senha } = req.body;
+
+    const { data, error } = await supabase
+      .from("professores")
+      .select("*")
+      .eq("email", email)
+      .eq("senha", senha)
+      .single();
+
+    if (error || !data) {
+      return res.status(401).json({
+        erro: "Email ou senha inválidos.",
+      });
+    }
+
+    res.json({
+      mensagem: "Login realizado.",
+      professor: data,
+    });
+  } catch (error) {
+    console.log(error);
+
+    res.status(500).json({
+      erro: "Erro ao realizar login.",
+    });
+  }
+});
+
+/* ==========================
+   REGISTRAR LEITURA
+========================== */
+
+app.post("/api/registrar", async (req, res) => {
+  const { aluno_id, minutos } = req.body;
+
+  if (!aluno_id || !minutos) {
+    return res.status(400).json({
+      erro: "Dados inválidos.",
+    });
+  }
+
+  try {
+    const inicioDoDia = new Date();
+    inicioDoDia.setHours(0, 0, 0, 0);
+
+    const fimDoDia = new Date();
+    fimDoDia.setHours(23, 59, 59, 999);
+
+    const { data: leiturasHoje, error: erroBusca } = await supabase
+      .from("leituras")
+      .select("minutos")
+      .eq("aluno_id", aluno_id)
+      .gte("created_at", inicioDoDia.toISOString())
+      .lte("created_at", fimDoDia.toISOString());
+
+    if (erroBusca) throw erroBusca;
+
+    const totalHoje = (leiturasHoje || []).reduce(
+      (acc, item) => acc + item.minutos,
+      0,
+    );
+
+    if (totalHoje + minutos > 16) {
+      return res.status(400).json({
+        erro: `Limite diário excedido. Restam ${16 - totalHoje} minutos.`,
+      });
+    }
+
+    const { error } = await supabase
+      .from("leituras")
+      .insert([{ aluno_id, minutos }]);
+
+    if (error) throw error;
+
+    res.json({
+      mensagem: "Leitura registrada.",
+    });
+  } catch (error) {
+    console.log(error);
+
+    res.status(500).json({
+      erro: "Erro ao registrar leitura.",
+    });
+  }
+});
+
+/* ==========================
+   LISTAR LEITURAS
+========================== */
+
+app.get("/api/leituras", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("leituras")
+      .select("*")
+      .order("created_at", { ascending: true });
+
+    if (error) throw error;
+
+    res.json(data || []);
+  } catch (error) {
+    console.log(error);
+
+    res.status(500).json({
+      erro: "Erro ao buscar leituras.",
+    });
+  }
+});
+
+/* ==========================
+   ESTATÍSTICAS
+========================== */
+
+app.get("/api/estatisticas", async (req, res) => {
+  try {
+    const { data, error } = await supabase.from("leituras").select("minutos");
+
+    if (error) throw error;
+
+    const total_escola = (data || []).reduce(
+      (acc, item) => acc + item.minutos,
+      0,
+    );
+
+    res.json({ total_escola });
+  } catch (error) {
+    console.log(error);
+
+    res.status(500).json({
+      erro: "Erro ao buscar estatísticas.",
+    });
+  }
+});
+
+/* ==========================
+   RANKING DAS TURMAS
+========================== */
+
+app.get("/api/ranking", async (req, res) => {
+  try {
+    const { data, error } = await supabase.from("leituras").select(`
+        minutos,
+        alunos (
+          turma_id
+        )
+      `);
+
+    if (error) throw error;
+
+    const ranking = {};
+
+    (data || []).forEach((item) => {
+      const turma = item.alunos?.turma_id;
+      if (!turma) return;
+
+      ranking[turma] = (ranking[turma] || 0) + item.minutos;
+    });
+
+    const rankingFinal = Object.entries(ranking)
+      .map(([turma_id, minutos]) => ({
+        turma_id,
+        minutos,
+      }))
+      .sort((a, b) => b.minutos - a.minutos);
+
+    res.json(rankingFinal);
+  } catch (error) {
+    console.log(error);
+
+    res.status(500).json({
+      erro: "Erro ao gerar ranking.",
+    });
+  }
+});
+
+/* ==========================
+   SERVIDOR
+========================== */
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+});
